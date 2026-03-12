@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Ruteo Delivery</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Ruteo">
+    <meta name="theme-color" content="#F2F2F7">
+
+    <script>
+        const manifestJSON = JSON.stringify({
+            "name": "Ruteo Delivery",
+            "short_name": "Ruteo",
+            "start_url": window.location.href.split('#')[0],
+            "display": "standalone",
+            "background_color": "#FFFFFF",
+            "theme_color": "#F2F2F7",
+            "icons": [{
+                "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgZmlsbD0id2hpdGUiLz48dGV4dCB4PSI1MCUiIHk9IjU1JSIgZm9udC1zaXplPSIzNjAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9InJlZCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+UjwvdGV4dD48L3N2Zz4=",
+                "sizes": "512x512",
+                "type": "image/svg+xml"
+            }]
+        });
+        document.write('<link rel="manifest" href="data:application/manifest+json;charset=utf-8,' + encodeURIComponent(manifestJSON) + '">');
+    </script>
+
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgZmlsbD0id2hpdGUiLz48dGV4dCB4PSI1MCUiIHk9IjU1JSIgZm9udC1zaXplPSIzNjAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9InJlZCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+UjwvdGV4dD48L3N2Zz4=">
+    <link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgZmlsbD0id2hpdGUiLz48dGV4dCB4PSI1MCUiIHk9IjU1JSIgZm9udC1zaXplPSIzNjAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9ImJvbGQiIGZpbGw9InJlZCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+UjwvdGV4dD48L3N2Zz4=">
+
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <style>
+        :root { --bg: #F2F2F7; --surface: #FFFFFF; --text-main: #1C1C1E; --text-sec: #8E8E93; --accent: #FF3B30; --accent-blue: #007AFF; --warning: #FFCC00; --success: #34C759; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Roboto, Helvetica, sans-serif; }
+        body { margin: 0; padding: 0; background-color: var(--bg); color: var(--text-main); display: flex; flex-direction: column; min-height: 100vh; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+        
+        header { padding: 16px 20px 8px 20px; position: relative; }
+        h1 { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -1px; color: var(--accent); }
+        p.subtitle { margin: 4px 0 0 0; font-size: 14px; color: var(--text-sec); font-weight: 500; display: flex; align-items: center; gap: 6px; }
+        
+        main { padding: 0 16px 140px 16px; flex: 1; overflow-y: auto; overflow-x: hidden;}
+        
+        .address-card { background: var(--surface); border-radius: 16px; padding: 10px 12px; margin-bottom: 8px; display: flex; align-items: stretch; gap: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); position: relative; }
+        .address-number { background: #F2F2F7; color: var(--text-main); width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; flex-shrink: 0; margin-top: 2px;}
+        .address-info { flex: 1; display: flex; flex-direction: column; gap: 2px; padding-right: 4px;}
+        .address-text { font-size: 14px; font-weight: 600; line-height: 1.2; }
+        .apt-text { font-size: 13px; color: var(--accent-blue); font-weight: 700; margin-top: 0px;}
+        .address-meta { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; margin-top: 2px;}
+        
+        .address-time { font-size: 11px; color: var(--text-sec); font-weight: 600; background: #F2F2F7; padding: 2px 6px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;}
+        .tag-return { font-size: 10px; color: var(--accent); font-weight: 700; background: #FFE5E5; padding: 2px 6px; border-radius: 6px;}
+        .tag-custom-pin { font-size: 10px; color: #FFFFFF; font-weight: 700; background: var(--accent-blue); padding: 2px 6px; border-radius: 6px;}
+        
+        .note-bubble { background: #FFF9C4; border-left: 4px solid var(--warning); padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; color: #5D4037; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;}
+        
+        .action-zone-right { display: flex; flex-direction: column; justify-content: space-between; align-items: center; border-left: 1px solid #F2F2F7; padding-left: 8px; gap: 6px;}
+        .icon-btn { width: 30px; height: 30px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; flex-shrink: 0; transition: transform 0.1s;}
+        .icon-btn:active { transform: scale(0.9); }
+        .btn-note { background: #FFF9C4; color: #F57F17; }
+        .btn-map { background: #E3F2FD; color: var(--accent-blue); }
+        .drag-handle { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: grab; touch-action: none; background: #F2F2F7; border-radius: 50%; color: #8E8E93;}
+        
+        .bottom-action-bar { position: fixed; bottom: 0; left: 0; right: 0; padding: 12px 16px; padding-bottom: calc(16px + env(safe-area-inset-bottom)); background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(15px); box-shadow: 0 -4px 20px rgba(0,0,0,0.05); z-index: 50; display: flex; gap: 12px; align-items: center; justify-content: flex-end;}
+        
+        .btn-settings { background: #F2F2F7; color: var(--text-main); border: none; width: 48px; height: 48px; border-radius: 16px; font-size: 20px; display: flex; justify-content: center; align-items: center;}
+        
+        .upload-wrapper { flex: 1; position: relative; display: flex; justify-content: flex-end;}
+        .upload-label { background: var(--accent); color: white; border-radius: 20px; padding: 16px 20px; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; box-shadow: 0 8px 24px rgba(255, 59, 48, 0.3); transition: transform 0.1s;}
+        .upload-label:active { transform: scale(0.97); }
+        #imageUpload { display: none; }
+        
+        .btn-maps { background-color: var(--success); color: white; border: none; padding: 16px 20px; border-radius: 20px; font-size: 16px; font-weight: 700; width: 100%; display: none; justify-content: center; align-items: center; gap: 8px; text-decoration: none; box-shadow: 0 8px 24px rgba(52, 199, 89, 0.3); transition: transform 0.1s; }
+        .btn-maps:active { transform: scale(0.97); }
+
+        #loading-state { display: none; text-align: center; padding: 60px 0; }
+        .loader { border: 4px solid #E5E5EA; border-top: 4px solid var(--accent); border-radius: 50%; width: 48px; height: 48px; animation: spin 1s linear infinite; margin: 0 auto 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .progress-bar { width: 80%; height: 8px; background: #E5E5EA; border-radius: 10px; overflow: hidden; margin: 20px auto; }
+        .progress-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.3s ease; }
+        
+        #result-state { display: none; }
+        .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding: 0 4px; }
+        .result-header h2 { font-size: 20px; margin: 0; font-weight: 800; display: flex; align-items: center; gap: 6px;}
+        
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: flex-end; backdrop-filter: blur(2px);}
+        .modal-content { background: #fff; width: 100%; border-radius: 24px 24px 0 0; padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); box-shadow: 0 -10px 40px rgba(0,0,0,0.1); transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1); max-height: 85vh; overflow-y: auto;}
+        .modal-overlay.active .modal-content { transform: translateY(0); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .modal-header h3 { margin: 0; font-size: 18px; font-weight: 800; }
+        .btn-close { background: #E5E5EA; border: none; width: 32px; height: 32px; border-radius: 50%; font-size: 18px; font-weight: bold; cursor: pointer; color: #8E8E93;}
+        
+        textarea { width: 100%; background: #F2F2F7; border: none; border-radius: 16px; padding: 16px; font-size: 16px; min-height: 100px; outline: none; margin-bottom: 8px; resize: none;}
+        .btn-save { background: var(--text-main); color: white; width: 100%; padding: 16px; border-radius: 16px; font-size: 16px; font-weight: 700; border: none; cursor: pointer; transition: transform 0.1s;}
+        .btn-save:active { transform: scale(0.97); }
+        .btn-delete { background: #FFE5E5; color: var(--accent); width: 100%; padding: 16px; border-radius: 16px; font-size: 16px; font-weight: 700; border: none; cursor: pointer; margin-top: 8px; display: none;}
+        
+        .input-group { display: flex; gap: 8px; margin-bottom: 16px; background: #F2F2F7; border-radius: 16px; padding: 6px; align-items: stretch; }
+        .input-group input { flex: 1; padding: 12px 16px; border-radius: 12px; border: none; font-size: 16px; background: transparent; outline: none; }
+        .btn-add { background: var(--surface); color: var(--accent); border: none; padding: 12px 20px; border-radius: 12px; font-weight: 700; font-size: 15px;}
+        .chip { background: #E5E5EA; padding: 8px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; margin: 4px; }
+        .chip span { color: var(--accent); font-weight: bold; cursor: pointer; font-size: 16px; line-height: 1;}
+        
+        #mapContainer { height: 300px; width: 100%; background: #E5E5EA; border-radius: 16px; margin-bottom: 16px;}
+        
+        #errorMsg { color: var(--accent); text-align: center; margin-top: 24px; font-weight: 600; display: none; background: #FFE5E5; padding: 16px; border-radius: 16px; }
+    </style>
+</head>
+<body>
+    
+    <div style="position: absolute; top: 16px; right: 20px; font-size: 11px; color: var(--text-sec); font-weight: 800; z-index: 100;">El BartO</div>
+
+    <header>
+        <h1>Ruteo</h1>
+        <p class="subtitle">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            Wong Óvalo Gutiérrez
+        </p>
+    </header>
+
+    <main>
+        <div id="home-state" style="text-align: center; margin-top: 50px; color: var(--text-sec);">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#C7C7CC" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+            <p style="font-size: 18px; font-weight: 600; margin-top: 16px; color: var(--text-main);">Listo para Rutear</p>
+            <p style="font-size: 14px;">Toma un pantallazo de los pedidos y súbelo aquí abajo.</p>
+        </div>
+
+        <div id="loading-state">
+            <div class="loader"></div>
+            <div id="loadingText" style="font-size: 18px; font-weight: 800;">Analizando imagen...</div>
+            <div id="loadingSub" style="color: var(--text-sec); font-size: 14px; margin-top: 4px;">Motor OCR IA activado</div>
+            <div class="progress-bar"><div class="progress-fill" id="progressBar"></div></div>
+        </div>
+
+        <div id="result-state">
+            <div class="result-header">
+                <h2>Tu Ruta <span id="routeCount" style="color:var(--text-sec); font-size: 16px;">(0)</span></h2>
+                <button onclick="resetRoute()" style="background:#FFE5E5; color:var(--accent); border:none; padding:8px 14px; border-radius:12px; font-weight:700; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg> Reiniciar
+                </button>
+            </div>
+            <div id="addressesList"></div>
+        </div>
+        
+        <div id="errorMsg"></div>
+    </main>
+
+    <div class="bottom-action-bar">
+        <button class="btn-settings" onclick="openModal('settingsModal'); vibrate();">⚙️</button>
+        
+        <div class="upload-wrapper" id="uploadWrapper">
+            <label class="upload-label" for="imageUpload" onclick="vibrate()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                Subir Imagen
+            </label>
+            <input type="file" id="imageUpload" accept="image/png, image/jpeg">
+        </div>
+
+        <a href="#" class="btn-maps" id="mapsBtn" target="_blank" rel="noopener noreferrer" onclick="vibrate()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
+            Iniciar Viaje
+        </a>
+    </div>
+
+    <div id="settingsModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Ajustes y Nube</h3>
+                <button class="btn-close" onclick="closeModal('settingsModal')">&times;</button>
+            </div>
+            
+            <button id="btnManualSync" class="btn-save" onclick="manualSync()" style="margin-bottom: 12px; background: var(--accent-blue); display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg> 
+                Sincronizar Manualmente
+            </button>
+
+            <div style="display: flex; gap: 8px; margin-bottom: 24px;">
+                <button class="btn-save" onclick="exportData()" style="flex: 1; background: #34C759; font-size: 13px; padding: 12px; display: flex; justify-content: center; align-items: center; gap: 6px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    Respaldar
+                </button>
+                <button class="btn-save" onclick="document.getElementById('importData').click()" style="flex: 1; background: #FF9500; font-size: 13px; padding: 12px; display: flex; justify-content: center; align-items: center; gap: 6px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    Restaurar
+                </button>
+                <input type="file" id="importData" style="display: none;" accept=".json" onchange="importData(event)">
+            </div>
+
+            <p style="font-size: 14px; font-weight: 700; margin-bottom: 8px;">Prioridad de Regreso (Avenidas)</p>
+            <div class="input-group">
+                <input type="text" id="avInput" placeholder="Ej: Santa Cruz">
+                <button class="btn-add" id="btnAddAv">Añadir</button>
+            </div>
+            <div id="avenuesList" style="margin-bottom: 24px;"></div>
+
+            <p style="font-size: 14px; font-weight: 700; margin-bottom: 8px;">Memoria GPS Manual</p>
+            <div id="savedLocationsList" style="font-size: 14px;"></div>
+        </div>
+    </div>
+
+    <div id="noteModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="noteModalTitle" style="font-size: 16px; color: var(--accent-blue);">Añadir Nota</h3>
+                <button class="btn-close" onclick="closeModal('noteModal')">&times;</button>
+            </div>
+            <p style="font-size: 13px; color: var(--text-sec); margin-top: -10px; margin-bottom: 16px;">Se guardará para la próxima vez en la nube/dispositivo.</p>
+            
+            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                <div id="lblPos" style="flex:1; background:#E8F5E9; color:#2E7D32; padding:10px; border-radius:12px; font-size:14px; font-weight:700; text-align:center; border:2px solid transparent; cursor:pointer; transition: 0.2s;" onclick="setNoteType('positive')">
+                    ✅ Positivo
+                </div>
+                <div id="lblNeg" style="flex:1; background:#FFF9C4; color:#F57F17; padding:10px; border-radius:12px; font-size:14px; font-weight:700; text-align:center; border:2px solid transparent; cursor:pointer; transition: 0.2s;" onclick="setNoteType('negative')">
+                    ⚠️ Negativo
+                </div>
+            </div>
+
+            <textarea id="noteInput" placeholder="Ej: Conserje no recibe pedidos..."></textarea>
+            <button class="btn-save" onclick="saveNote()">Guardar Nota</button>
+            <button class="btn-delete" id="btnDeleteNote" onclick="deleteNote()">Eliminar Nota</button>
+        </div>
+    </div>
+
+    <div id="dictationModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="micStatusTitle" style="font-size: 16px; color: var(--accent-blue);">🎤 Escuchando...</h3>
+                <button class="btn-close" onclick="closeDictation()">&times;</button>
+            </div>
+            <p style="font-size: 13px; color: var(--text-sec); margin-top: -10px; margin-bottom: 8px;">Habla la dirección o escribe para buscar rápidamente.</p>
+            <textarea id="dictationInput" placeholder="Ej: Avenida Pardo 123..."></textarea>
+            
+            <div id="dictSuggestions" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px;"></div>
+
+            <button class="btn-save" id="btnDictationSave" onclick="processDictatedText()">Aceptar y Rutear</button>
+        </div>
+    </div>
+
+    <div id="mapModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="mapModalTitle" style="font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80%;">Ubicación Exacta</h3>
+                <button class="btn-close" onclick="closeModal('mapModal')">&times;</button>
+            </div>
+            <p style="font-size: 13px; color: var(--text-sec); margin-top: -10px; margin-bottom: 16px;">Mueve el mapa para fijar la ubicación real de la puerta.</p>
+            <div id="mapContainer"></div>
+            <button class="btn-save" onclick="saveMapLocation()">Guardar en Memoria GPS</button>
+        </div>
+    </div>
+
+<script>
+    function vibrate() { if(navigator.vibrate) navigator.vibrate(50); }
+
+    function openModal(id) {
+        const modal = document.getElementById(id);
+        modal.style.display = 'flex';
+        setTimeout(() => modal.classList.add('active'), 10);
+    }
+    function closeModal(id) {
+        const modal = document.getElementById(id);
+        modal.classList.remove('active');
+        setTimeout(() => modal.style.display = 'none', 300);
+    }
+
+    const ORIGIN_LAT = -12.110594; const ORIGIN_LON = -77.038483;
+    const ORIGIN_STR = "Wong+Ovalo+Gutierrez,+Lima,+Peru";
+    let currentStops = []; 
+    
+    // --- GESTIÓN DE NUBE Y MEMORIA LOCAL ---
+    const SYNC_URL = 'sync.php'; 
+    
+    let savedAvenues = JSON.parse(localStorage.getItem('favAvenues')) || [];
+    let customLocations = JSON.parse(localStorage.getItem('customLocations')) || {};
+    let savedNotes = JSON.parse(localStorage.getItem('savedNotes')) || {};
+
+    // LIMPIADOR DE ANUNCIOS: Ignora cualquier HTML inyectado por el hosting gratuito
+    function cleanMiarrobaHTML(text) {
+        try {
+            if (text.includes("---START_JSON---") && text.includes("---END_JSON---")) {
+                let jsonStr = text.split("---START_JSON---")[1].split("---END_JSON---")[0];
+                return JSON.parse(jsonStr.trim());
+            }
+            return JSON.parse(text); 
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // Cargar datos de la Nube al abrir
+    async function loadFromCloud() {
+        try {
+            let res = await fetch(SYNC_URL + '?_t=' + Date.now());
+            let text = await res.text();
+            
+            let data = cleanMiarrobaHTML(text);
+            if (data && !data.error) {
+                if(data.favAvenues) savedAvenues = data.favAvenues;
+                if(data.customLocations) customLocations = data.customLocations;
+                if(data.savedNotes) savedNotes = data.savedNotes;
+                
+                localStorage.setItem('favAvenues', JSON.stringify(savedAvenues));
+                localStorage.setItem('customLocations', JSON.stringify(customLocations));
+                localStorage.setItem('savedNotes', JSON.stringify(savedNotes));
+                
+                renderAvenues(); renderSavedLocations();
+                if(currentStops.length > 0) renderStops();
+            }
+        } catch (e) {
+            console.log("Error de conexión");
+        }
+    }
+
+    // Guardar usando FormData y Base64 para engañar al Firewall Miarroba (evita Error 502)
+    function syncToCloud() {
+        localStorage.setItem('favAvenues', JSON.stringify(savedAvenues));
+        localStorage.setItem('customLocations', JSON.stringify(customLocations));
+        localStorage.setItem('savedNotes', JSON.stringify(savedNotes));
+        
+        let jsonData = JSON.stringify({
+            favAvenues: savedAvenues,
+            customLocations: customLocations,
+            savedNotes: savedNotes
+        });
+
+        let fd = new FormData();
+        // Convertimos el JSON a texto codificado Base64 para que el Firewall no lo bloquee
+        fd.append('b64data', btoa(unescape(encodeURIComponent(jsonData))));
+
+        fetch(SYNC_URL, {
+            method: 'POST',
+            body: fd
+        }).catch(e => console.log("Fallo silencioso"));
+    }
+
+    // Sincronización Manual (Primero sube, luego baja)
+    async function manualSync() {
+        vibrate();
+        const btn = document.getElementById('btnManualSync');
+        let originalText = btn.innerHTML;
+        btn.innerHTML = "Sincronizando...";
+        
+        try {
+            // 1. Forzamos el guardado de lo que tienes primero
+            let jsonData = JSON.stringify({ favAvenues: savedAvenues, customLocations: customLocations, savedNotes: savedNotes });
+            let fd = new FormData();
+            fd.append('b64data', btoa(unescape(encodeURIComponent(jsonData))));
+            await fetch(SYNC_URL, { method: 'POST', body: fd });
+
+            // 2. Descargamos lo nuevo
+            let res = await fetch(SYNC_URL + '?_t=' + Date.now());
+            let text = await res.text();
+            
+            let data = cleanMiarrobaHTML(text);
+            
+            if (data && !data.error) {
+                if(data.favAvenues) savedAvenues = data.favAvenues;
+                if(data.customLocations) customLocations = data.customLocations;
+                if(data.savedNotes) savedNotes = data.savedNotes;
+                
+                renderAvenues(); renderSavedLocations();
+                if(currentStops.length > 0) renderStops();
+                
+                btn.innerHTML = "✅ ¡Sincronizado!";
+            } else {
+                btn.innerHTML = "❌ Fallo lectura";
+            }
+        } catch (e) {
+            btn.innerHTML = "❌ Fallo conexión";
+        }
+        setTimeout(() => { btn.innerHTML = originalText; }, 2500);
+    }
+
+    // --- FUNCIONES DE RESPALDO MANUAL ---
+    function exportData() {
+        vibrate();
+        const data = { favAvenues: savedAvenues, customLocations: customLocations, savedNotes: savedNotes };
+        const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'ruteo_respaldo.json';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function importData(event) {
+        vibrate();
+        const file = event.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                if(data.favAvenues) savedAvenues = data.favAvenues;
+                if(data.customLocations) customLocations = data.customLocations;
+                if(data.savedNotes) savedNotes = data.savedNotes;
+                syncToCloud();
+                renderAvenues(); renderSavedLocations();
+                if(currentStops.length > 0) renderStops();
+                alert("✅ Respaldo restaurado con éxito.");
+            } catch(err) {
+                alert("❌ Error al leer el archivo de respaldo.");
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = ''; 
+    }
+
+    // --- PERSISTENCIA DE RUTEO (1 HORA) ---
+    function saveRouteSession() {
+        localStorage.setItem('activeRoute', JSON.stringify({ stops: currentStops, timestamp: Date.now() }));
+    }
+    function loadRouteSession() {
+        let saved = localStorage.getItem('activeRoute');
+        if(saved) {
+            let parsed = JSON.parse(saved);
+            if(Date.now() - parsed.timestamp < 3600000) { 
+                currentStops = parsed.stops;
+                els.home.style.display = 'none';
+                els.uploadWrap.style.display = 'none';
+                els.result.style.display = 'block';
+                els.mapsBtn.style.display = 'flex';
+                renderStops();
+            } else {
+                localStorage.removeItem('activeRoute');
+            }
+        }
+    }
+
+    function resetRoute() {
+        vibrate();
+        if(confirm("¿Seguro que deseas reiniciar el ruteo actual?")) {
+            currentStops = [];
+            localStorage.removeItem('activeRoute');
+            els.list.innerHTML = '';
+            els.home.style.display = 'block';
+            els.uploadWrap.style.display = 'flex';
+            els.result.style.display = 'none';
+            els.mapsBtn.style.display = 'none';
+        }
+    }
+
+    // RENDER AVENIDAS
+    const avenuesContainer = document.getElementById('avenuesList');
+    function renderAvenues() {
+        avenuesContainer.innerHTML = '';
+        savedAvenues.forEach((av, index) => {
+            const chip = document.createElement('div'); chip.className = 'chip';
+            chip.innerHTML = `${av} <span onclick="removeAvenue(${index})">&times;</span>`;
+            avenuesContainer.appendChild(chip);
+        });
+    }
+    function removeAvenue(index) { savedAvenues.splice(index, 1); vibrate(); renderAvenues(); syncToCloud(); }
+    document.getElementById('btnAddAv').addEventListener('click', () => {
+        const val = document.getElementById('avInput').value.trim();
+        if(val && !savedAvenues.includes(val)) { savedAvenues.push(val); document.getElementById('avInput').value = ''; vibrate(); renderAvenues(); syncToCloud(); }
+    });
+
+    // RENDER MEMORIA GPS
+    function renderSavedLocations() {
+        const container = document.getElementById('savedLocationsList');
+        container.innerHTML = '';
+        Object.keys(customLocations).forEach(key => {
+            const div = document.createElement('div'); 
+            div.style.cssText = "display:flex; justify-content:space-between; background:#F2F2F7; padding:8px 12px; border-radius:12px; margin-bottom:6px; align-items:center;";
+            div.innerHTML = `<span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:85%;">📍 ${key.split(',')[0]}</span> <span onclick="deleteCustomLocation('${key}')" style="color:var(--accent); font-weight:bold; font-size:18px; cursor:pointer;">&times;</span>`;
+            container.appendChild(div);
+        });
+        if(Object.keys(customLocations).length === 0) container.innerHTML = '<span style="color:#8E8E93">No hay pines guardados en la nube.</span>';
+    }
+    function deleteCustomLocation(key) { delete customLocations[key]; vibrate(); renderSavedLocations(); syncToCloud(); }
+
+    // --- LECTURA OCR Y PROCESAMIENTO ---
+    const els = {
+        upload: document.getElementById('imageUpload'), home: document.getElementById('home-state'),
+        loading: document.getElementById('loading-state'), loadSub: document.getElementById('loadingSub'), progBar: document.getElementById('progressBar'),
+        result: document.getElementById('result-state'), list: document.getElementById('addressesList'),
+        uploadWrap: document.getElementById('uploadWrapper'), mapsBtn: document.getElementById('mapsBtn'),
+        err: document.getElementById('errorMsg'), count: document.getElementById('routeCount')
+    };
+
+    els.upload.addEventListener('change', async function(e) {
+        if (!e.target.files.length) return;
+        const file = e.target.files[0];
+        
+        els.home.style.display = 'none'; els.err.style.display = 'none';
+        els.result.style.display = 'none'; els.mapsBtn.style.display = 'none';
+        els.uploadWrap.style.display = 'none';
+        els.loading.style.display = 'block'; els.progBar.style.width = '0%';
+
+        try {
+            const result = await Tesseract.recognize(file, 'spa', {
+                logger: m => { if(m.status === 'recognizing text') { els.progBar.style.width = Math.round(m.progress * 100) + '%'; els.loadSub.innerText = `Procesando IA... ${Math.round(m.progress * 100)}%`; } }
+            });
+            
+            let stops = parseText(result.data.text);
+            if (stops.length === 0) throw new Error("Vacio");
+
+            els.loadSub.innerText = "Calculando GPS...";
+            els.progBar.style.width = '50%';
+            stops = await getCoordinates(stops);
+
+            els.progBar.style.width = '100%';
+            currentStops = optimizeRoute(stops);
+
+            renderStops();
+            
+            els.loading.style.display = 'none';
+            els.result.style.display = 'block';
+            els.mapsBtn.style.display = 'flex'; 
+
+        } catch (error) {
+            els.loading.style.display = 'none'; els.uploadWrap.style.display = 'flex'; els.home.style.display = 'block';
+            els.err.innerText = error.message === "Vacio" ? "No detectamos direcciones claras (Av, Ca, Jr). Toma la foto más nítida." : "Error procesando la imagen.";
+            els.err.style.display = 'block';
+        }
+        els.upload.value = ''; 
+    });
+
+    function parseText(rawText) {
+        let text = rawText
+            .replace(/San lsidro/ig, 'San Isidro').replace(/San lsidr0/ig, 'San Isidro')
+            .replace(/M1raflores/ig, 'Miraflores').replace(/MirafIores/ig, 'Miraflores')
+            .replace(/\n\s*(Miraflores|San Isidro)/ig, ' $1'); 
+
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 5);
+        let stops = [];
+        const timeRegex = /(\d{1,2})[:.;](\d{2})\s*(?:-|al?|a)\s*(\d{1,2})[:.;](\d{2})/i;
+
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i];
+            
+            let matchAddr = line.match(/((?:av|ca|jr|avenida|calle|jir[oó]n|pasaje).+?\d+)(?:\s*(?:,|dpto\.?|dpt\.?|-)\s*([a-zA-Z0-9]+))?.*?(Miraflores|San Isidro)/i);
+            if (!matchAddr) {
+                matchAddr = line.match(/(.+?\d+)(?:\s*(?:,|dpto\.?|dpt\.?|-)\s*([a-zA-Z0-9]+))?.*?(Miraflores|San Isidro)/i);
+            }
+
+            if (matchAddr) {
+                let streetPart = matchAddr[1].replace(/^[oO0-9\)\.\-\s]+/, '').trim(); 
+                let aptPart = matchAddr[2] ? matchAddr[2].trim() : null;
+                let district = matchAddr[3].trim();
+                
+                streetPart = streetPart.replace(/^av\s/i, 'Av. ').replace(/^ca\s/i, 'Ca. ').replace(/^jr\s/i, 'Jr. ');
+
+                let gpsAddress = `${streetPart}, ${district}`;
+                let noteKey = aptPart ? `${streetPart}, Dpto ${aptPart}` : gpsAddress; 
+
+                let timeStr = "Sin hora"; 
+                let endTimeNum = 9999; 
+                
+                for(let j = Math.max(0, i - 1); j <= i + 3 && j < lines.length; j++){
+                    let matchTime = lines[j].match(timeRegex);
+                    if(matchTime){ 
+                        timeStr = `${matchTime[1]}:${matchTime[2]} - ${matchTime[3]}:${matchTime[4]}`; 
+                        endTimeNum = parseInt(matchTime[3]) * 60 + parseInt(matchTime[4]); 
+                        break; 
+                    }
+                }
+
+                if(!stops.find(s => s.gpsAddress === gpsAddress && s.apt === aptPart)) {
+                    let isFav = savedAvenues.some(fav => gpsAddress.toLowerCase().includes(fav.toLowerCase()));
+                    stops.push({ 
+                        gpsAddress: gpsAddress, apt: aptPart, noteKey: noteKey,
+                        time: timeStr, endTime: endTimeNum, lat: null, lon: null, isReturn: isFav, isCustom: false 
+                    });
+                }
+            }
+        }
+        return stops;
+    }
+
+    async function getCoordinates(stops) {
+        for (let stop of stops) {
+            if (customLocations[stop.gpsAddress]) {
+                stop.lat = customLocations[stop.gpsAddress].lat; stop.lon = customLocations[stop.gpsAddress].lon;
+                stop.isCustom = true; continue; 
+            }
+            try {
+                let query = encodeURIComponent(`${stop.gpsAddress}, Peru`);
+                let res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`);
+                let data = await res.json();
+                if (data && data.length > 0) { stop.lat = parseFloat(data[0].lat); stop.lon = parseFloat(data[0].lon); }
+            } catch (e) {}
+            await new Promise(r => setTimeout(r, 200)); 
+        }
+        return stops;
+    }
+
+    function getDistance(lat1, lon1, lat2, lon2) {
+        if(!lat1 || !lat2) return 999; 
+        const R = 6371; const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+        return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+    }
+
+    function optimizeRoute(stops) {
+        const now = new Date();
+        const currentMins = now.getHours() * 60 + now.getMinutes();
+
+        stops.forEach(s => {
+            if (s.endTime === 9999) {
+                s.timeLeft = 9999;
+            } else {
+                s.timeLeft = s.endTime - currentMins;
+                if (s.timeLeft < -600) s.timeLeft += 1440; 
+            }
+        });
+
+        let urgentStops = stops.filter(s => s.timeLeft <= 15 && s.timeLeft >= -180); 
+        let normalStops = stops.filter(s => s.timeLeft > 15 || s.timeLeft < -180 || s.endTime === 9999);
+
+        let pureNormal = normalStops.filter(s => !s.isReturn);
+        let returnStops = normalStops.filter(s => s.isReturn);
+
+        let optimized = []; 
+        let currentLat = ORIGIN_LAT; 
+        let currentLon = ORIGIN_LON;
+
+        const calculateNext = (arr) => {
+            while(arr.length > 0) {
+                let idx = 0; let minDist = Infinity;
+                for(let i=0; i<arr.length; i++) {
+                    let dist = getDistance(currentLat, currentLon, arr[i].lat, arr[i].lon);
+                    if(dist < minDist) { minDist = dist; idx = i; }
+                }
+                let next = arr.splice(idx, 1)[0];
+                optimized.push(next);
+                if(next.lat) { currentLat = next.lat; currentLon = next.lon; }
+            }
+        }
+
+        calculateNext(urgentStops); 
+        calculateNext(pureNormal);  
+        calculateNext(returnStops); 
+
+        return optimized;
+    }
+
+    // --- DICTADO POR VOZ Y AUTOCOMPLETADO INTELIGENTE ---
+    let recognition;
+    let typingTimer;
+
+    document.getElementById('dictationInput').addEventListener('input', function() {
+        clearTimeout(typingTimer);
+        let text = this.value;
+        if(text.length > 5) {
+            typingTimer = setTimeout(() => fetchSuggestions(text), 600);
+        } else {
+            document.getElementById('dictSuggestions').innerHTML = '';
+        }
+    });
+
+    async function fetchSuggestions(query) {
+        let dictText = query.replace(/departamento|depa|número/gi, 'dpto');
+        if(!/Miraflores|San Isidro/i.test(dictText)) dictText += " Miraflores";
+
+        try {
+            let res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(dictText + ', Lima, Peru')}&limit=3`);
+            let data = await res.json();
+            let html = '';
+            data.forEach(item => {
+                let addressParts = item.display_name.split(', ');
+                let shortName = addressParts[0] + ', ' + (addressParts[1] || '') + ' (' + (addressParts[2] || '') + ')';
+                html += `<div onclick="selectSuggestion('${item.display_name}')" style="background:#F2F2F7; padding:10px 14px; border-radius:12px; font-size:13px; color:var(--text-main); cursor:pointer; font-weight:600; box-shadow:0 2px 6px rgba(0,0,0,0.03);">📍 ${shortName}</div>`;
+            });
+            document.getElementById('dictSuggestions').innerHTML = html;
+        } catch(e) {}
+    }
+
+    function selectSuggestion(text) {
+        vibrate();
+        let parts = text.split(', ');
+        document.getElementById('dictationInput').value = parts[0] + ', ' + parts[2]; 
+        document.getElementById('dictSuggestions').innerHTML = '';
+    }
+
+    function startVoiceInput() {
+        vibrate();
+        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRec) { alert("Tu navegador no soporta dictado por voz."); return; }
+        
+        document.getElementById('dictationInput').value = "";
+        document.getElementById('dictSuggestions').innerHTML = "";
+        document.getElementById('btnDictationSave').innerText = "Aceptar y Rutear";
+        document.getElementById('micStatusTitle').innerText = "🎤 Escuchando...";
+        openModal('dictationModal');
+        
+        if(recognition) { try { recognition.stop(); } catch(e){} }
+
+        recognition = new SpeechRec();
+        recognition.lang = 'es-PE';
+        recognition.continuous = false; 
+        recognition.interimResults = true; 
+        
+        recognition.onresult = function(event) {
+            let transcript = event.results[0][0].transcript;
+            transcript = transcript.replace(/departamento|depa|número/gi, 'dpto').replace(/andamos/gi, 'Angamos');
+            document.getElementById('dictationInput').value = transcript;
+            fetchSuggestions(transcript); 
+        };
+        recognition.onend = function() {
+            document.getElementById('micStatusTitle').innerText = "✅ Texto Capturado";
+        };
+        recognition.start();
+    }
+
+    function closeDictation() {
+        if(recognition) { try { recognition.stop(); } catch(e){} }
+        closeModal('dictationModal');
+    }
+
+    async function processDictatedText() {
+        vibrate();
+        if(recognition) { try { recognition.stop(); } catch(e){} }
+        
+        const text = document.getElementById('dictationInput').value.trim();
+        if(!text) { closeModal('dictationModal'); return; }
+        
+        document.getElementById('btnDictationSave').innerText = "Calculando ruta...";
+        
+        let dictText = text.replace(/departamento|depa|número/gi, 'dpto').replace(/andamos/gi, 'Angamos');
+        if(!/Miraflores|San Isidro/i.test(dictText)) dictText += " Miraflores"; 
+        
+        let parsed = parseText(dictText);
+        let stop = parsed.length > 0 ? parsed[0] : {
+            gpsAddress: text, apt: null, noteKey: text,
+            time: "Sin hora", endTime: 9999, lat: null, lon: null, isReturn: false, isCustom: false
+        };
+        
+        let gpsResult = await getCoordinates([stop]);
+        
+        currentStops.push(gpsResult[0]);
+        currentStops = optimizeRoute(currentStops);
+        renderStops();
+        
+        closeModal('dictationModal');
+    }
+
+    function deleteStop(index) {
+        vibrate();
+        currentStops.splice(index, 1);
+        currentStops = optimizeRoute(currentStops);
+        renderStops();
+    }
+
+    // --- RENDERIZADO VISUAL CON AGRUPACIÓN DE NOTAS CLICKEABLES ---
+    function renderStops() {
+        els.list.innerHTML = '';
+        els.count.innerText = `(${currentStops.length})`;
+        
+        currentStops.forEach((stop, index) => {
+            const card = document.createElement('div'); card.className = 'address-card';
+            
+            const num = document.createElement('div'); num.className = 'address-number'; num.innerText = index + 1;
+            
+            const info = document.createElement('div'); info.className = "address-info";
+            
+            const txt = document.createElement('div'); txt.className = 'address-text'; txt.innerText = stop.gpsAddress;
+            info.appendChild(txt);
+            
+            if(stop.apt) {
+                const aptTxt = document.createElement('div'); aptTxt.className = 'apt-text'; aptTxt.innerText = `Dpto / Int: ${stop.apt}`;
+                info.appendChild(aptTxt);
+            }
+
+            const meta = document.createElement('div'); meta.className = 'address-meta';
+            
+            if(stop.time !== "Sin hora") { 
+                let timeColor = stop.timeLeft <= 15 ? "color: white; background: var(--accent);" : "";
+                meta.innerHTML += `<div class="address-time" style="${timeColor}">⏱ ${stop.time}</div>`; 
+            }
+            if(stop.isReturn) { meta.innerHTML += `<span class="tag-return">Prioridad regreso</span>`; }
+            if(stop.isCustom) { meta.innerHTML += `<span class="tag-custom-pin">📍 Memoria GPS</span>`; }
+            if(meta.innerHTML !== '') info.appendChild(meta);
+
+            // AGRUPADOR DE NOTAS INTELIGENTE Y CLICKEABLES
+            let stopBase = stop.gpsAddress.split(',')[0].trim();
+            Object.keys(savedNotes).forEach(k => {
+                let kBase = k.split(',')[0].trim();
+                if (kBase === stopBase) {
+                    let noteData = savedNotes[k];
+                    let noteText = typeof noteData === 'string' ? noteData : noteData.text;
+                    let noteType = typeof noteData === 'string' ? 'negative' : noteData.type;
+                    
+                    let bg = noteType === 'positive' ? '#E8F5E9' : '#FFF9C4';
+                    let border = noteType === 'positive' ? '#34C759' : 'var(--warning)';
+                    let color = noteType === 'positive' ? '#2E7D32' : '#5D4037';
+                    let icon = noteType === 'positive' ? '✅' : '⚠️';
+                    
+                    let specificPart = "General";
+                    if (k.includes('Dpto')) specificPart = "Dpto " + k.split('Dpto')[1].trim();
+                    else if (k.includes('Int')) specificPart = "Int " + k.split('Int')[1].trim();
+                    else if (k !== stopBase && k.includes(',')) specificPart = k.split(',')[1].trim(); 
+                    
+                    const noteDiv = document.createElement('div'); 
+                    noteDiv.className = 'note-bubble';
+                    noteDiv.style.cssText = `background: ${bg}; border-left: 4px solid ${border}; color: ${color}; cursor: pointer; align-items: flex-start;`;
+                    noteDiv.innerHTML = `<span style="flex:1;">${icon} <b>[${specificPart}]</b> ${noteText}</span> <span style="font-size: 14px; opacity: 0.5; margin-left: 6px;">✏️</span>`;
+                    
+                    noteDiv.onclick = (e) => {
+                        e.stopPropagation();
+                        openNoteEditor(k);
+                    };
+
+                    info.appendChild(noteDiv);
+                }
+            });
+
+            const actions = document.createElement('div'); actions.className = 'action-zone-right';
+            
+            const noteBtn = document.createElement('button'); noteBtn.className = 'icon-btn btn-note'; noteBtn.innerHTML = '📝';
+            noteBtn.onclick = () => openNoteEditor(stop.noteKey);
+            
+            const mapBtn = document.createElement('button'); mapBtn.className = 'icon-btn btn-map'; mapBtn.innerHTML = '📍';
+            mapBtn.onclick = () => openMapModal(stop.gpsAddress, stop.lat, stop.lon);
+
+            const delBtn = document.createElement('button'); 
+            delBtn.className = 'icon-btn'; 
+            delBtn.style.cssText = 'background: #FFE5E5; color: #FF3B30;'; 
+            delBtn.innerHTML = '🗑️';
+            delBtn.onclick = () => deleteStop(index);
+
+            const dragHandle = document.createElement('div'); dragHandle.className = 'drag-handle'; 
+            dragHandle.innerHTML = '☰'; 
+
+            actions.appendChild(noteBtn);
+            actions.appendChild(mapBtn);
+            actions.appendChild(delBtn); 
+            actions.appendChild(dragHandle);
+
+            card.appendChild(num); card.appendChild(info); card.appendChild(actions);
+            els.list.appendChild(card);
+        });
+
+        if(currentStops.length > 0) {
+            const voiceBtnContainer = document.createElement('div');
+            voiceBtnContainer.style.cssText = "display: flex; justify-content: center; margin-top: 16px; margin-bottom: 24px; padding-bottom: 20px;";
+            voiceBtnContainer.innerHTML = `
+                <button id="micBtn" onclick="startVoiceInput()" style="background: #E3F2FD; color: #007AFF; border: none; border-radius: 20px; padding: 14px 24px; font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,122,255,0.15); cursor: pointer; transition: transform 0.1s; width: 100%; justify-content: center;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line></svg>
+                    Añadir dirección por voz
+                </button>
+            `;
+            els.list.appendChild(voiceBtnContainer);
+        }
+
+        buildMapsUrl(currentStops);
+        saveRouteSession();
+
+        if (window.routeSortable) window.routeSortable.destroy();
+        window.routeSortable = new Sortable(els.list, {
+            handle: '.drag-handle', animation: 250, delay: 50, delayOnTouchOnly: true,
+            onStart: function() { vibrate(); },
+            onEnd: function (evt) {
+                if(evt.oldIndex === evt.newIndex || evt.oldIndex >= currentStops.length || evt.newIndex >= currentStops.length) return; 
+                vibrate();
+                const movedItem = currentStops.splice(evt.oldIndex, 1)[0];
+                currentStops.splice(evt.newIndex, 0, movedItem);
+                setTimeout(() => renderStops(), 50); 
+            }
+        });
+    }
+
+    function buildMapsUrl(stops) {
+        const waypoints = stops.map(s => {
+            if(s.isCustom && s.lat && s.lon) return `${s.lat},${s.lon}`; 
+            return encodeURIComponent(`${s.gpsAddress}, Peru`);
+        }).join('|');
+        let mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${ORIGIN_STR}&destination=${ORIGIN_STR}&waypoints=${waypoints}&travelmode=two-wheeler`;
+        els.mapsBtn.href = mapsUrl;
+    }
+
+    // --- LÓGICA DE NOTAS ---
+    let currentEditingNoteKey = "";
+    let currentNoteType = 'negative';
+
+    function setNoteType(type) {
+        currentNoteType = type;
+        document.getElementById('lblPos').style.borderColor = type === 'positive' ? '#2E7D32' : 'transparent';
+        document.getElementById('lblNeg').style.borderColor = type === 'negative' ? '#F57F17' : 'transparent';
+    }
+
+    function openNoteEditor(key) {
+        vibrate();
+        currentEditingNoteKey = key;
+        document.getElementById('noteModalTitle').innerText = key;
+        const input = document.getElementById('noteInput');
+        
+        const existing = savedNotes[key];
+        if (existing) {
+            input.value = typeof existing === 'string' ? existing : existing.text;
+            setNoteType(typeof existing === 'string' ? 'negative' : (existing.type || 'negative'));
+            document.getElementById('btnDeleteNote').style.display = 'block';
+        } else {
+            input.value = "";
+            setNoteType('negative'); 
+            document.getElementById('btnDeleteNote').style.display = 'none';
+        }
+        
+        openModal('noteModal');
+    }
+    
+    function saveNote() {
+        vibrate();
+        const val = document.getElementById('noteInput').value.trim();
+        if(val) { 
+            savedNotes[currentEditingNoteKey] = { text: val, type: currentNoteType }; 
+        } else { 
+            delete savedNotes[currentEditingNoteKey]; 
+        }
+        syncToCloud(); closeModal('noteModal'); renderStops();
+    }
+
+    function deleteNote() {
+        vibrate();
+        delete savedNotes[currentEditingNoteKey]; syncToCloud();
+        closeModal('noteModal'); renderStops();
+    }
+
+    // --- LÓGICA DEL MAPA ---
+    let theMap = null; let currentMarker = null; let editingAddress = "";
+
+    function openMapModal(address, lat, lon) {
+        vibrate();
+        editingAddress = address;
+        document.getElementById('mapModalTitle').innerText = address.split(',')[0];
+        openModal('mapModal');
+        const startLat = lat || ORIGIN_LAT; const startLon = lon || ORIGIN_LON;
+
+        setTimeout(() => {
+            if(!theMap) {
+                theMap = L.map('mapContainer').setView([startLat, startLon], 17);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(theMap);
+                const customIcon = L.icon({
+                    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                    iconSize: [25, 41], iconAnchor: [12, 41]
+                });
+                currentMarker = L.marker([startLat, startLon], {draggable: true, icon: customIcon}).addTo(theMap);
+                theMap.on('move', function () { currentMarker.setLatLng(theMap.getCenter()); });
+            } else {
+                theMap.setView([startLat, startLon], 17);
+                currentMarker.setLatLng([startLat, startLon]);
+            }
+            theMap.invalidateSize();
+        }, 350);
+    }
+
+    function saveMapLocation() {
+        vibrate();
+        const pos = currentMarker.getLatLng();
+        customLocations[editingAddress] = { lat: pos.lat, lon: pos.lng };
+        syncToCloud();
+        
+        const stop = currentStops.find(s => s.gpsAddress === editingAddress);
+        if(stop) { stop.lat = pos.lat; stop.lon = pos.lng; stop.isCustom = true; }
+        
+        renderSavedLocations(); renderStops(); closeModal('mapModal');
+    }
+
+    // CARGAR SESIÓN Y NUBE AL INICIAR
+    document.addEventListener("DOMContentLoaded", () => {
+        loadRouteSession();
+        loadFromCloud();
+    });
+
+</script>
+</body>
+</html>
