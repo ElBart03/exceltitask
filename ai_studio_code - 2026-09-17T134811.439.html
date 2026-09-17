@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#F2F2F7">
+    <title>Revisión de Pagos v2.5</title>
+    
+    <!-- PWA Manifest Integrado -->
+    <link rel="manifest" id="manifest-link">
+    <script>
+        const manifest = {
+            "name": "Pagos v2.5",
+            "short_name": "Pagos",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#F2F2F7",
+            "theme_color": "#F2F2F7",
+            "icons": [{
+                "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzAwN0FGRiIvPjx0ZXh0IHg9IjUwIiB5PSI2NSIgZm9udC1zaXplPSI1MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iI2ZmZiI+UDwvdGV4dD48L3N2Zz4=",
+                "sizes": "512x512",
+                "type": "image/svg+xml"
+            }]
+        };
+        document.getElementById('manifest-link').href = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
+    </script>
+
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <!-- Librería para convertir HTML a Imagen -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* Paleta App Bancaria iOS - Modo Claro */
+            --bg-body: #F2F2F7;
+            --surface: #FFFFFF;
+            --surface-alt: #F9F9FB;
+            --primary: #1C1C1E; 
+            --accent: #007AFF;
+            --accent-bg: #E5F1FF;
+            --success: #34C759;
+            --text-main: #000000;
+            --text-light: #8E8E93;
+            --border: #E5E5EA;
+            --divider: #C6C6C8;
+            --input-bg: #E3E3E8;
+            --bonus-bg: #FFF9E6;
+            --bonus-border: #FFE58F;
+            --bonus-text: #D48806;
+            --bonus-header: #FFF2C2;
+            --toast-bg: rgba(28, 28, 30, 0.9);
+            --toast-color: #FFFFFF;
+            
+            --radius: 16px;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+            --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        /* Paleta App Bancaria iOS - Modo Oscuro */
+        body.dark-mode {
+            --bg-body: #000000;
+            --surface: #1C1C1E;
+            --surface-alt: #2C2C2E;
+            --primary: #FFFFFF;
+            --accent: #0A84FF;
+            --accent-bg: #0A2440;
+            --success: #30D158;
+            --text-main: #FFFFFF;
+            --text-light: #98989D;
+            --border: #38383A;
+            --divider: #38383A;
+            --input-bg: #2C2C2E;
+            --bonus-bg: #2A2005;
+            --bonus-border: #664D03;
+            --bonus-text: #FFD60A;
+            --bonus-header: #4D3900;
+            --toast-bg: rgba(255, 255, 255, 0.9);
+            --toast-color: #000000;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg-body); color: var(--text-main); margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; font-size: 16px; transition: background-color 0.3s, color 0.3s; }
+
+        /* Animaciones Fluidas iOS */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slideUpSheet { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes slideDownSheet { from { transform: translateY(0); } to { transform: translateY(100%); } }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+        
+        @keyframes blinkHighlight {
+            0% { background-color: transparent; }
+            20% { background-color: var(--bonus-header); }
+            40% { background-color: transparent; }
+            60% { background-color: var(--bonus-header); }
+            80% { background-color: transparent; }
+            100% { background-color: var(--bonus-bg); }
+        }
+        .highlight-blink { animation: blinkHighlight 2s ease-in-out forwards; border-radius: 12px; }
+        .loading-pulse { animation: pulse 1.5s infinite ease-in-out; }
+
+        /* Transiciones globales fluidas */
+        button, tr, .icon-btn, .close-btn, .drop-zone, .search-input, .balance-card, .bonus-card, .modal-card { 
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); 
+        }
+
+        /* --- PANTALLA DE CARGA Y PROGRESO --- */
+        .upload-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-body); z-index: 1000; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; transition: opacity 0.4s ease; padding: 20px;
+        }
+        
+        .welcome-header { text-align: center; margin-bottom: 40px; animation: slideUp 0.5s ease-out; }
+        .welcome-header .logo-icon { font-size: 3.5rem; color: var(--accent); margin-bottom: 15px; }
+        .welcome-header h1 { margin: 0; font-size: 2.2rem; color: var(--primary); font-weight: 800; letter-spacing: -0.5px; }
+        .welcome-header p { margin: 12px auto 0; color: var(--text-light); font-size: 1.1rem; max-width: 320px; line-height: 1.5; font-weight: 500; }
+
+        .drop-zone {
+            background: var(--surface); width: 100%; max-width: 400px; padding: 45px 30px; border-radius: 28px;
+            text-align: center; box-shadow: var(--shadow-lg); border: 2px solid transparent;
+            cursor: pointer; position: relative; overflow: hidden; animation: slideUp 0.6s ease-out;
+        }
+        .drop-zone:active { transform: scale(0.96); border-color: var(--accent); }
+        
+        .upload-icon-wrapper { width: 80px; height: 80px; background: var(--accent-bg); color: var(--accent); border-radius: 40px; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; margin: 0 auto 20px; transition: transform 0.3s; }
+        .drop-zone:active .upload-icon-wrapper { transform: scale(0.9); }
+
+        .progress-container { width: 100%; display: none; }
+        .progress-percent { font-size: 3rem; font-weight: 800; color: var(--accent); margin-bottom: 15px; font-variant-numeric: tabular-nums; letter-spacing: -1px; }
+        .progress-bar-bg { width: 100%; height: 10px; background: var(--input-bg); border-radius: 5px; overflow: hidden; margin-bottom: 15px; }
+        .progress-bar-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.1s linear; border-radius: 5px; }
+        .progress-text { font-size: 1.05rem; color: var(--text-light); font-weight: 600; }
+
+        .hidden { display: none !important; opacity: 0; pointer-events: none; }
+
+        /* --- DASHBOARD --- */
+        .dashboard { display: flex; flex-direction: column; height: 100%; animation: fadeIn 0.4s ease-out; }
+
+        /* Header Superior */
+        .top-bar {
+            padding: 20px 20px 10px; display: flex; justify-content: space-between; align-items: center; 
+            z-index: 20; animation: slideUp 0.3s ease-out;
+        }
+        .logo h2 { margin: 0; font-size: 1.4rem; color: var(--primary); font-weight: 700; display: flex; align-items: center; gap: 8px; letter-spacing: -0.5px; }
+        .version-badge { background: var(--accent-bg); color: var(--accent); font-size: 0.75rem; padding: 4px 8px; border-radius: 12px; font-weight: 700; }
+        
+        .icon-btn {
+            background: var(--accent-bg); color: var(--accent); border: none;
+            width: 42px; height: 42px; border-radius: 21px; font-size: 1.1rem;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; box-shadow: var(--shadow-sm);
+        }
+        .icon-btn:active { transform: scale(0.9); }
+
+        /* Tarjeta de Saldo (Balance Card) */
+        .balance-card {
+            background: var(--surface);
+            color: var(--text-main);
+            margin: 10px 20px 20px;
+            padding: 18px 20px;
+            border-radius: 20px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border);
+            text-align: center;
+            animation: slideUp 0.4s ease-out;
+        }
+        .balance-card span { color: var(--text-light); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+        .balance-card strong { display: block; font-size: 2.2rem; font-weight: 800; margin: 6px 0; letter-spacing: -0.5px; color: var(--primary); }
+        .balance-card .kpi-sub { font-size: 0.85rem; color: var(--text-light); font-weight: 500; display: flex; justify-content: center; gap: 15px; margin-top: 5px; }
+
+        /* Buscador */
+        .search-container { margin: 0 20px 15px; position: relative; animation: slideUp 0.5s ease-out; }
+        .search-container i { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--text-light); font-size: 1rem; }
+        .search-input {
+            width: 100%; padding: 14px 14px 14px 44px; border: none; border-radius: 14px;
+            font-size: 1.05rem; outline: none; background: var(--input-bg); color: var(--text-main); 
+            font-family: 'Inter', sans-serif;
+        }
+        .search-input:focus { background: var(--surface); box-shadow: 0 0 0 2px var(--accent); }
+
+        /* Lista de Personas */
+        .table-container { 
+            flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0 20px 30px; 
+            -webkit-overflow-scrolling: touch; animation: slideUp 0.6s ease-out;
+        }
+        
+        .list-group { background: var(--surface); border-radius: 20px; overflow: hidden; box-shadow: var(--shadow-sm); }
+        table { width: 100%; border-collapse: collapse; }
+        
+        tr { 
+            display: flex; align-items: center; border-bottom: 1px solid var(--border);
+            cursor: pointer;
+        }
+        tr:last-child { border-bottom: none; }
+        tr:active { background: var(--surface-alt); }
+        
+        td { padding: 0; width: 100%; }
+
+        /* BONUS CARD REDISEÑADA */
+        .bonus-card {
+            background: var(--surface); 
+            border: 1px solid var(--border); 
+            border-radius: 20px; 
+            padding: 18px 20px; 
+            margin-bottom: 20px;
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            box-shadow: var(--shadow-sm);
+        }
+        .bonus-info h4 { margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--primary); display: flex; align-items: center; }
+        .bonus-info p { margin: 4px 0 0 28px; font-size: 0.85rem; color: var(--text-light); font-weight: 500; }
+        .bonus-amount { font-size: 1.4rem; font-weight: 800; color: var(--bonus-text); }
+
+        /* Modal Resumen (Bottom Sheet iOS) */
+        .modal-bg { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0, 0, 0, 0.6); z-index: 2000; display: flex; 
+            align-items: flex-end; justify-content: center; backdrop-filter: blur(5px); 
+        }
+        .modal-card { 
+            background: var(--bg-body); width: 100%; max-width: 600px; max-height: 90vh; 
+            border-radius: 24px 24px 0 0; display: flex; flex-direction: column; 
+            overflow: hidden; box-shadow: var(--shadow-lg);
+            animation: slideUpSheet 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        .modal-drag-handle {
+            width: 40px; height: 5px; background: var(--text-light); border-radius: 3px;
+            margin: 12px auto; opacity: 0.5;
+        }
+        .modal-header { padding: 0 20px 15px; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 0; overflow-y: auto; flex: 1; background: var(--bg-body); scroll-behavior: smooth; }
+
+        .close-btn {
+            background: var(--input-bg); border: none; border-radius: 16px; padding: 8px 16px;
+            font-size: 0.95rem; font-weight: 600; color: var(--primary); cursor: pointer;
+        }
+        .close-btn:active { transform: scale(0.95); }
+
+        /* Panel de Detalles Extra (Acordeón fluido) */
+        .extra-details-wrapper {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: max-height 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.4s ease;
+        }
+        .extra-details-wrapper.expanded {
+            max-height: 1000px; 
+            opacity: 1;
+        }
+
+        /* Toast Notificación */
+        .toast {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: var(--toast-bg); color: var(--toast-color); padding: 12px 24px;
+            border-radius: 24px; font-size: 1rem; font-weight: 500; opacity: 0; transition: opacity 0.3s;
+            pointer-events: none; z-index: 3000; backdrop-filter: blur(10px);
+        }
+        .toast.visible { opacity: 1; bottom: 40px; }
+
+        /* --- MODO LECTURA GRANDE (ACCESIBILIDAD) --- */
+        body.a11y-mode .welcome-header h1 { font-size: 2.6rem; }
+        body.a11y-mode .welcome-header p { font-size: 1.3rem; font-weight: 600; max-width: 100%; }
+        body.a11y-mode .drop-zone h2 { font-size: 1.8rem; }
+        body.a11y-mode .drop-zone p { font-size: 1.2rem; font-weight: 600; }
+        body.a11y-mode .progress-percent { font-size: 4rem; }
+
+        body.a11y-mode .balance-card span { font-size: 1.1rem; font-weight: 700; color: var(--text-main); }
+        body.a11y-mode .balance-card strong { font-size: 3.2rem; }
+        body.a11y-mode .kpi-sub { font-size: 1.1rem; font-weight: 700; color: var(--primary); }
+        body.a11y-mode .search-input { font-size: 1.25rem; padding: 18px 18px 18px 48px; }
+        body.a11y-mode .search-container i { font-size: 1.3rem; left: 18px; }
+        
+        body.a11y-mode .driver-name { font-size: 1.4rem !important; font-weight: 800 !important; }
+        body.a11y-mode .driver-count { font-size: 1.1rem !important; font-weight: 600 !important; color: var(--text-main) !important; }
+        body.a11y-mode .driver-total { font-size: 1.6rem !important; font-weight: 800 !important; }
+        
+        body.a11y-mode .bonus-info h4 { font-size: 1.3rem; }
+        body.a11y-mode .bonus-info p { font-size: 1.1rem; margin-left: 32px; }
+        body.a11y-mode .bonus-amount { font-size: 1.8rem; }
+
+        body.a11y-mode .modal-driver-name { font-size: 1.8rem !important; font-weight: 800 !important; }
+        body.a11y-mode .modal-driver-total { font-size: 3.5rem !important; }
+        body.a11y-mode .modal-guide-text { font-size: 1.3rem !important; font-weight: 700 !important; }
+        body.a11y-mode .modal-guide-price { font-size: 1.4rem !important; font-weight: 800 !important; }
+        body.a11y-mode .modal-table-text { font-size: 1.2rem !important; font-weight: 600 !important; }
+        body.a11y-mode .date-header { font-size: 1.2rem !important; color: var(--text-main) !important; }
+        body.a11y-mode .date-total { font-size: 1.3rem !important; color: var(--primary) !important; }
+        body.a11y-mode #shareableTicket h3 { font-size: 1.6rem !important; }
+        body.a11y-mode #shareableTicket p { font-size: 1.2rem !important; font-weight: 600 !important; color: var(--text-main) !important; }
+        body.a11y-mode .modal-header h3 { font-size: 1.5rem !important; }
+        body.a11y-mode .close-btn { font-size: 1.2rem !important; padding: 12px 20px !important; }
+        body.a11y-mode button { font-size: 1.1rem !important; }
+    </style>
+</head>
+<body>
+
+    <!-- PANTALLA DE CARGA -->
+    <div id="uploadScreen" class="upload-overlay">
+        <div class="welcome-header">
+            <div class="logo-icon"><i class="fas fa-wallet"></i></div>
+            <h1>Revisión de Pagos</h1>
+            <p>Gestione y revise los pagos de forma rápida, clara y sencilla.</p>
+        </div>
+
+        <div class="drop-zone" onclick="document.getElementById('fileUpload').click()">
+            <div id="uploadContent">
+                <!-- onclick="this.value=null" soluciona el error de no cargar al seleccionar el mismo archivo -->
+                <input type="file" id="fileUpload" accept=".xlsx, .xls" style="display:none" onclick="this.value=null" onchange="handleFileWithProgress(event)" />
+                <div class="upload-icon-wrapper">
+                    <i class="fas fa-file-excel"></i>
+                </div>
+                <h2 style="margin: 0; color: var(--primary); font-size: 1.5rem; font-weight: 700;">Cargar Excel</h2>
+                <p style="color: var(--text-light); margin-top: 10px; font-size: 1rem; font-weight: 500;">Toque aquí para seleccionar su archivo</p>
+            </div>
+
+            <!-- BARRA DE PROGRESO ANIMADA -->
+            <div id="progressContainer" class="progress-container">
+                <div id="progressPercent" class="progress-percent">0%</div>
+                <div class="progress-bar-bg">
+                    <div id="progressBarFill" class="progress-bar-fill"></div>
+                </div>
+                <div id="progressText" class="progress-text">Iniciando...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DASHBOARD PRINCIPAL -->
+    <div id="dashboard" class="dashboard hidden">
+        
+        <!-- Header -->
+        <div class="top-bar">
+            <div class="logo">
+                <h2>Revisión de Pagos <span class="version-badge">v2.5</span></h2>
+                <div id="fileDateDisplay" style="font-size: 0.8rem; color: var(--text-light); font-weight: 500; margin-top: 4px;">
+                    --
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="Modo Oscuro">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button class="icon-btn" id="a11yBtn" onclick="toggleA11y()" title="Modo Lectura Grande">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="icon-btn" onclick="downloadCSV()" title="Descargar Excel">
+                    <i class="fas fa-arrow-down"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Tarjeta de Saldo -->
+        <div class="balance-card">
+            <span>Total General a Pagar</span>
+            <strong id="kpiTotal">S/ 0.00</strong>
+            <div class="kpi-sub">
+                <div><i class="fas fa-users"></i> <span id="kpiDrivers">0</span> Personas</div>
+            </div>
+        </div>
+
+        <!-- Buscador -->
+        <div class="search-container">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchInput" class="search-input" placeholder="Buscar persona o código..." onkeyup="filterData()">
+        </div>
+
+        <!-- Lista -->
+        <div class="table-container">
+            <div id="bonusContainer"></div>
+            <div class="list-group">
+                <table>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL RESUMEN (Bottom Sheet) -->
+    <div id="summaryModal" class="hidden modal-bg">
+        <div class="modal-card">
+            <div class="modal-drag-handle"></div>
+            <div class="modal-header">
+                <h3 id="modalTitle" style="margin:0; font-size: 1.2rem; color: var(--primary); font-weight: 700;">Movimientos</h3>
+                <button class="close-btn" onclick="closeModal()">Cerrar</button>
+            </div>
+            <div class="modal-body" id="modalContent"></div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICACIÓN -->
+    <div id="toast" class="toast">Copiado al portapapeles</div>
+
+<script>
+    const COLS = { DATE: 1, GUIDE: 9, NAME: 13, PRICE: 22, BONUS: 23 };
+    let allData = [];
+    let filteredData = [];
+
+    // Función para quitar tildes y normalizar texto
+    function removeAccents(str) {
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    }
+
+    // Función para animar el porcentaje de carga fluidamente
+    function animateProgress(start, end, duration, text) {
+        return new Promise(resolve => {
+            document.getElementById('progressText').innerText = text;
+            let startTime = null;
+            const step = (timestamp) => {
+                if (!startTime) startTime = timestamp;
+                const progress = Math.min((timestamp - startTime) / duration, 1);
+                const currentPct = Math.floor(progress * (end - start) + start);
+                
+                document.getElementById('progressBarFill').style.width = currentPct + '%';
+                document.getElementById('progressPercent').innerText = currentPct + '%';
+                
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                } else {
+                    resolve();
+                }
+            };
+            window.requestAnimationFrame(step);
+        });
+    }
+
+    // --- PROGRESO Y CARGA ---
+    async function handleFileWithProgress(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const fileName = file.name.toLowerCase();
+        if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
+            alert("Por favor, seleccione únicamente un archivo Excel (.xlsx o .xls)");
+            e.target.value = '';
+            return;
+        }
+
+        const fileDateObj = file.lastModified ? new Date(file.lastModified) : new Date();
+        const fileDateStr = fileDateObj.toLocaleDateString('es-PE', { day: '2-digit', month: 'short' });
+        document.getElementById('fileDateDisplay').innerHTML = `<i class="far fa-calendar"></i> ${fileDateStr}`;
+
+        document.getElementById('uploadContent').style.display = 'none';
+        document.getElementById('progressContainer').style.display = 'block';
+        document.querySelector('.drop-zone').classList.add('loading-pulse');
+
+        try {
+            await animateProgress(0, 20, 400, "Preparando archivo...");
+            const arrayBuffer = await readFileAsync(file);
+            
+            await animateProgress(20, 50, 500, "Analizando estructura...");
+            const workbook = XLSX.read(new Uint8Array(arrayBuffer), {type: 'array', cellDates: true});
+            
+            await animateProgress(50, 80, 600, "Extrayendo datos...");
+            processData(workbook);
+            
+            await animateProgress(80, 100, 400, "¡Todo listo!");
+
+            setTimeout(() => {
+                document.querySelector('.drop-zone').classList.remove('loading-pulse');
+                document.getElementById('uploadScreen').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+            }, 500);
+
+        } catch (err) {
+            alert("Error al leer el archivo: " + err);
+            location.reload();
+        }
+    }
+
+    function readFileAsync(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = reject;
+            reader.readAsArrayBuffer(file);
+        });
+    }
+
+    function processData(workbook) {
+        let sheetName = workbook.SheetNames.find(n => n.toLowerCase().match(/(planilla|pagos|reporte)/)) || workbook.SheetNames[0];
+        const ws = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(ws, {header: 1, defval: null, blankrows: false});
+
+        let headerRow = 0;
+        for(let i=0; i<Math.min(30, jsonData.length); i++) {
+            const rowStr = JSON.stringify(jsonData[i]).toLowerCase();
+            if(rowStr.includes("activación") || rowStr.includes("guia")) {
+                headerRow = i;
+                break;
+            }
+        }
+
+        allData = [];
+
+        for(let i = headerRow + 1; i < jsonData.length; i++) {
+            const row = jsonData[i];
+            if(!row) continue;
+
+            const rawName = row[COLS.NAME];
+            const rawGuide = row[COLS.GUIDE];
+            
+            if(!rawName && !rawGuide) continue;
+
+            let name = rawName ? String(rawName).toUpperCase().trim().replace(/\s+/g, ' ') : "SIN NOMBRE";
+            if(name.includes("TOTAL") || name.includes("PÁGINA")) continue;
+
+            let rawGuideStr = rawGuide ? String(rawGuide).trim() : "";
+            let simpleGuide = "S/N";
+            const match8 = rawGuideStr.match(/(\d{8})/);
+            if (match8) simpleGuide = match8[0];
+            else if (rawGuideStr.length > 0) simpleGuide = rawGuideStr;
+
+            let rawPrice = row[COLS.PRICE];
+            let basePrice = 0;
+            if(typeof rawPrice === 'number') basePrice = rawPrice;
+            else if (rawPrice) basePrice = parseFloat(String(rawPrice).replace(/[^\d.-]/g, '')) || 0;
+
+            let rawBonus = row[COLS.BONUS];
+            let bonus = 0;
+            if(typeof rawBonus === 'number') bonus = rawBonus;
+            else if (rawBonus) bonus = parseFloat(String(rawBonus).replace(/[^\d.-]/g, '')) || 0;
+
+            let totalRowPrice = basePrice + bonus;
+
+            // Procesamiento de Fecha con Día de la semana (Sin Año)
+            let rawDate = row[COLS.DATE];
+            let dateStr = "";
+            let dateObj = null;
+            
+            if (rawDate instanceof Date) {
+                dateObj = rawDate;
+            } else if (rawDate) {
+                let strDate = String(rawDate).trim();
+                let parts = strDate.split('/');
+                if (parts.length === 3) {
+                    dateObj = new Date(parts[2], parts[1] - 1, parts[0]);
+                } else {
+                    dateObj = new Date(strDate);
+                }
+            }
+
+            if (dateObj && !isNaN(dateObj.getTime())) {
+                const days = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
+                let dayName = days[dateObj.getDay()];
+                let d = String(dateObj.getDate()).padStart(2, '0');
+                let m = String(dateObj.getMonth() + 1).padStart(2, '0');
+                dateStr = `${dayName} ${d}/${m}`;
+            } else {
+                dateStr = rawDate ? String(rawDate).trim() : "SIN FECHA";
+            }
+
+            allData.push({ 
+                name, simpleGuide, 
+                price: basePrice, 
+                bonus: bonus, 
+                total: totalRowPrice, 
+                dateStr 
+            });
+        }
+
+        allData.sort((a, b) => b.total - a.total);
+        filteredData = [...allData];
+        renderTable();
+    }
+
+    function filterData() {
+        // Búsqueda sin tildes
+        const term = removeAccents(document.getElementById('searchInput').value.toUpperCase());
+        const terms = term.split(' ').filter(t => t.length > 0);
+
+        filteredData = allData.filter(item => {
+            const normalizedName = removeAccents(item.name);
+            const normalizedGuide = removeAccents(item.simpleGuide);
+            
+            const nameMatch = terms.every(t => normalizedName.includes(t));
+            const guideMatch = normalizedGuide.includes(term);
+            return nameMatch || guideMatch;
+        });
+        renderTable();
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('tableBody');
+        const bonusContainer = document.getElementById('bonusContainer');
+        
+        const groups = {};
+        let totalBonusInView = 0;
+        let countBonus = 0;
+
+        filteredData.forEach(item => {
+            if (!groups[item.name]) {
+                groups[item.name] = { name: item.name, total: 0, count: 0 };
+            }
+            groups[item.name].total += item.total;
+            groups[item.name].count++;
+            
+            if(item.bonus > 0) {
+                totalBonusInView += item.bonus;
+                countBonus++;
+            }
+        });
+
+        const sortedGroups = Object.values(groups).sort((a, b) => b.total - a.total);
+        
+        let html = '';
+        sortedGroups.forEach((g, index) => {
+            let delay = index * 0.05; 
+            html += `
+                <tr onclick="showDriverDetails('${g.name}')" style="animation: fadeIn 0.4s ease-out ${delay}s backwards;">
+                    <td style="padding: 16px 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
+                            <span class="driver-name" style="font-weight: 600; color: var(--primary); font-size: 1.05rem;">${g.name}</span>
+                            <span class="driver-count" style="font-size: 0.85rem; color: var(--text-light);">${g.count} movimientos</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span class="driver-total" style="font-size: 1.15rem; font-weight: 700; color: var(--text-main);">${formatMoney(g.total)}</span>
+                            <i class="fas fa-chevron-right" style="color: var(--text-light); font-size: 0.9rem;"></i>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+
+        if (totalBonusInView > 0) {
+            bonusContainer.innerHTML = `
+                <div class="bonus-card">
+                    <div class="bonus-info">
+                        <h4><i class="fas fa-gift" style="color: var(--bonus-text); margin-right: 8px;"></i> Bonos Adicionales</h4>
+                        <p>${countBonus} registrados</p>
+                    </div>
+                    <div class="bonus-amount">
+                        +${formatMoney(totalBonusInView)}
+                    </div>
+                </div>
+            `;
+        } else {
+            bonusContainer.innerHTML = '';
+        }
+
+        tbody.innerHTML = html;
+        updateKPIs(filteredData);
+    }
+
+    function updateKPIs(data) {
+        const total = data.reduce((sum, item) => sum + item.total, 0);
+        const uniqueDrivers = new Set(data.map(i => i.name)).size;
+
+        document.getElementById('kpiDrivers').innerText = uniqueDrivers;
+        document.getElementById('kpiTotal').innerText = formatMoney(total);
+    }
+
+    // --- DETALLE ESPECÍFICO (Estilo Recibo Bancario) ---
+    function showDriverDetails(driverName) {
+        const driverData = allData.filter(item => item.name === driverName);
+        if (driverData.length === 0) return;
+
+        let total = 0;
+        let guides = [];
+        let bonuses = [];
+
+        driverData.forEach(item => {
+            total += item.total;
+            if(item.price > 0) guides.push({ code: item.simpleGuide, price: item.price, date: item.dateStr });
+            if(item.bonus > 0) bonuses.push({ code: "BONO MANUAL", price: item.bonus, date: item.dateStr });
+        });
+
+        let guidesByDate = {};
+        guides.forEach(g => {
+            if(!guidesByDate[g.date]) guidesByDate[g.date] = { items: [], total: 0, count: 0 };
+            guidesByDate[g.date].items.push(g);
+            guidesByDate[g.date].total += g.price;
+            guidesByDate[g.date].count += 1;
+        });
+
+        let totalGuidesCount = 0;
+        let totalGuidesAmount = 0;
+        let totalBonusesAmount = bonuses.reduce((s, b) => s + b.price, 0);
+
+        let html = `<div style="padding: 20px 20px 40px;">`;
+        
+        // Panel oculto de "Más detalles" con Tabla Semanal y Botón de Compartir
+        let extraDetailsHtml = `
+            <div id="extraDetailsPanel" class="extra-details-wrapper">
+                <div id="shareableTicket" style="background: var(--surface); border-radius: 16px; padding: 20px; margin-bottom: 15px; text-align: left; font-size: 0.95rem; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: 1px solid var(--border);">
+                    <div style="text-align: center; margin-bottom: 15px;">
+                        <h3 style="margin: 0; color: var(--primary); font-size: 1.2rem;">Resumen Semanal</h3>
+                        <p style="margin: 4px 0 0; color: var(--text-light); font-size: 0.9rem;">${driverName}</p>
+                    </div>
+                    <table style="width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 0.9rem;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--divider); color: var(--text-light);">
+                                <th style="text-align: left; padding-bottom: 6px; font-weight: 600; width: 40%;">Día</th>
+                                <th style="text-align: center; padding-bottom: 6px; font-weight: 600; width: 20%;">Cant.</th>
+                                <th style="text-align: right; padding-bottom: 6px; font-weight: 600; width: 40%;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+        `;
+        
+        Object.keys(guidesByDate).forEach(d => {
+            let count = guidesByDate[d].count;
+            let sum = guidesByDate[d].total;
+            totalGuidesCount += count;
+            totalGuidesAmount += sum;
+            
+            extraDetailsHtml += `
+                <tr>
+                    <td class="modal-table-text" style="padding: 6px 0; color: var(--text-main);">${d}</td>
+                    <td class="modal-table-text" style="text-align: center; padding: 6px 0; color: var(--text-main); font-weight: 500;">${count}</td>
+                    <td class="modal-table-text" style="text-align: right; padding: 6px 0; color: var(--text-main); font-weight: 500;">${formatMoney(sum)}</td>
+                </tr>
+            `;
+        });
+
+        let grandTotal = totalGuidesAmount + totalBonusesAmount;
+
+        extraDetailsHtml += `
+                        </tbody>
+                        <tbody style="border-top: 1px solid var(--divider);">
+                            <tr style="font-weight: 600; color: var(--text-main);">
+                                <td class="modal-table-text" style="padding-top: 8px; padding-bottom: 4px;">Subtotal Guías</td>
+                                <td class="modal-table-text" style="text-align: center; padding-top: 8px; padding-bottom: 4px;">${totalGuidesCount}</td>
+                                <td class="modal-table-text" style="text-align: right; padding-top: 8px; padding-bottom: 4px;">${formatMoney(totalGuidesAmount)}</td>
+                            </tr>
+        `;
+
+        if (bonuses.length > 0) {
+            extraDetailsHtml += `
+                            <tr style="font-weight: 600; color: var(--bonus-text);">
+                                <td class="modal-table-text" style="padding-bottom: 8px;">Bonos Manuales</td>
+                                <td class="modal-table-text" style="text-align: center; padding-bottom: 8px;">-</td>
+                                <td class="modal-table-text" style="text-align: right; padding-bottom: 8px;">${formatMoney(totalBonusesAmount)}</td>
+                            </tr>
+            `;
+        }
+
+        extraDetailsHtml += `
+                        </tbody>
+                        <tfoot>
+                            <tr style="border-top: 2px solid var(--primary); font-weight: 800; color: var(--primary); font-size: 1.1rem;">
+                                <td class="modal-table-text" style="padding-top: 10px;" colspan="2">TOTAL A PAGAR</td>
+                                <td class="modal-table-text" style="text-align: right; padding-top: 10px;">${formatMoney(grandTotal)}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                
+                <button onclick="shareAsImage('${driverName}')" style="width: 100%; background: var(--accent); color: white; border: none; padding: 14px; border-radius: 16px; font-size: 1.05rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0, 122, 255, 0.25);">
+                    <i class="fas fa-share-square"></i> Compartir Resumen
+                </button>
+            </div>
+        `;
+
+        // Cabecera del recibo
+        html += `<div style="text-align: center; margin-bottom: 25px;">
+                    <div style="width: 64px; height: 64px; background: var(--accent-bg); color: var(--accent); border-radius: 32px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; margin: 0 auto 15px;">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                        <h2 class="modal-driver-name" style="margin: 0; font-size: 1.3rem; font-weight: 600; color: var(--primary);">${driverName}</h2>
+                        <button onclick="toggleExtraDetails()" style="background: var(--accent-bg); color: var(--accent); border: none; padding: 6px 14px; border-radius: 16px; font-size: 0.85rem; font-weight: 700; cursor: pointer;">Más detalles</button>
+                    </div>
+                    <strong class="modal-driver-total" style="font-size: 2.8rem; font-weight: 800; color: var(--text-main); display: block; margin-top: 12px; letter-spacing: -1px;">${formatMoney(total)}</strong>
+                 </div>`;
+                 
+        html += extraDetailsHtml;
+
+        // Lista de movimientos agrupados
+        Object.keys(guidesByDate).forEach(date => {
+            html += `<div style="margin-bottom: 20px; background: var(--surface); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-sm);">
+                        <div style="background: var(--surface-alt); padding: 12px 20px; font-weight: 600; color: var(--text-light); display: flex; justify-content: space-between; border-bottom: 1px solid var(--border);">
+                            <span class="date-header" style="font-size: 0.9rem;">${date}</span>
+                            <span class="date-total" style="font-size: 0.9rem;">${formatMoney(guidesByDate[date].total)}</span>
+                        </div>
+                        <div style="padding: 0 10px;">`;
+            guidesByDate[date].items.forEach((item) => {
+                html += `<div id="code-${item.code}" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 10px; border-bottom: 1px solid var(--border); transition: background-color 0.3s;">
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <span class="modal-guide-text" style="font-size: 1rem; color: var(--primary); font-weight: 500;">Guía #${item.code}</span>
+                                <span style="font-size: 0.8rem; color: var(--accent); cursor: pointer;" onclick="copyToClipboard('${item.code}')"><i class="far fa-copy"></i> Copiar</span>
+                            </div>
+                            <span class="modal-guide-price" style="font-size: 1.1rem; font-weight: 600; color: var(--text-main);">${formatMoney(item.price)}</span>
+                         </div>`;
+            });
+            html = html.replace(/border-bottom: 1px solid var\(--border\);(?!.*border-bottom: 1px solid var\(--border\);)/, "");
+            html += `</div></div>`;
+        });
+
+        if (bonuses.length > 0) {
+            html += `<div style="margin-top: 20px; background: var(--bonus-bg); border-radius: 16px; overflow: hidden; border: 1px solid var(--bonus-border);">
+                        <div style="background: var(--bonus-header); padding: 12px 20px; font-weight: 600; color: var(--bonus-text); display: flex; justify-content: space-between;">
+                            <span class="date-header" style="font-size: 0.9rem;"><i class="fas fa-star"></i> Bonos Extras</span>
+                            <span class="date-total" style="font-size: 0.9rem;">${formatMoney(totalBonusesAmount)}</span>
+                        </div>
+                        <div style="padding: 0 10px;">`;
+            bonuses.forEach((b) => {
+                html += `<div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 10px; border-bottom: 1px solid var(--bonus-border);">
+                            <span class="modal-guide-text" style="font-size: 1rem; color: var(--bonus-text); font-weight: 500;">Bono Manual</span>
+                            <span class="modal-guide-price" style="font-size: 1.1rem; font-weight: 600; color: var(--bonus-text);">${formatMoney(b.price)}</span>
+                         </div>`;
+            });
+            html = html.replace(/border-bottom: 1px solid var\(--bonus-border\);(?!.*border-bottom: 1px solid var\(--bonus-border\);)/, "");
+            html += `</div></div>`;
+        }
+
+        html += `</div>`;
+        
+        document.getElementById('modalContent').innerHTML = html;
+        document.getElementById('summaryModal').classList.remove('hidden');
+        
+        // Desplazamiento automático al inicio (Top)
+        document.getElementById('modalContent').scrollTop = 0;
+
+        // Lógica para buscar y hacer tintinear el código si se usó el buscador
+        const searchTerm = removeAccents(document.getElementById('searchInput').value.trim().toUpperCase());
+        if (searchTerm) {
+            setTimeout(() => {
+                const exactMatch = document.getElementById(`code-${searchTerm}`);
+                if (exactMatch) {
+                    exactMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    exactMatch.classList.add('highlight-blink');
+                } else {
+                    // Búsqueda parcial si no es exacta
+                    const allCodes = document.querySelectorAll('[id^="code-"]');
+                    for (let node of allCodes) {
+                        if (removeAccents(node.id).includes(searchTerm)) {
+                            node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            node.classList.add('highlight-blink');
+                            break;
+                        }
+                    }
+                }
+            }, 400); // Esperar a que termine la animación del modal
+        }
+    }
+
+    function toggleExtraDetails() {
+        const panel = document.getElementById('extraDetailsPanel');
+        panel.classList.toggle('expanded');
+    }
+
+    // Función para activar el Modo Oscuro
+    function toggleTheme() {
+        document.body.classList.toggle('dark-mode');
+        const btn = document.getElementById('themeBtn');
+        const icon = btn.querySelector('i');
+        if(document.body.classList.contains('dark-mode')) {
+            icon.classList.remove('fa-moon');
+            icon.classList.add('fa-sun');
+            btn.style.background = 'var(--accent)';
+            btn.style.color = 'white';
+        } else {
+            icon.classList.remove('fa-sun');
+            icon.classList.add('fa-moon');
+            btn.style.background = 'var(--accent-bg)';
+            btn.style.color = 'var(--accent)';
+        }
+    }
+
+    // Función para activar el Modo Lectura Grande (Accesibilidad)
+    function toggleA11y() {
+        document.body.classList.toggle('a11y-mode');
+        const btn = document.getElementById('a11yBtn');
+        if(document.body.classList.contains('a11y-mode')) {
+            btn.style.background = 'var(--accent)';
+            btn.style.color = 'white';
+        } else {
+            btn.style.background = 'var(--accent-bg)';
+            btn.style.color = 'var(--accent)';
+        }
+    }
+
+    // Función para generar imagen y compartir
+    async function shareAsImage(driverName) {
+        const ticket = document.getElementById('shareableTicket');
+        const originalBoxShadow = ticket.style.boxShadow;
+        ticket.style.boxShadow = 'none'; // Quitar sombra temporalmente para una imagen más limpia
+        
+        // Determinar el color de fondo según el tema actual
+        const bgColor = document.body.classList.contains('dark-mode') ? '#1C1C1E' : '#FFFFFF';
+        
+        try {
+            const canvas = await html2canvas(ticket, { scale: 2, backgroundColor: bgColor });
+            ticket.style.boxShadow = originalBoxShadow;
+            
+            canvas.toBlob(async (blob) => {
+                const fileName = `Resumen_${driverName.replace(/\s+/g, '_')}.png`;
+                const file = new File([blob], fileName, { type: 'image/png' });
+                
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        title: `Resumen de Pagos - ${driverName}`,
+                        files: [file]
+                    });
+                } else {
+                    // Fallback para PC o navegadores que no soportan Web Share API
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.download = fileName;
+                    link.click();
+                }
+            }, 'image/png');
+        } catch (err) {
+            console.error("Error al generar imagen", err);
+            alert("No se pudo generar la imagen para compartir.");
+            ticket.style.boxShadow = originalBoxShadow;
+        }
+    }
+
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            const toast = document.getElementById('toast');
+            toast.classList.add('visible');
+            setTimeout(() => toast.classList.remove('visible'), 2000);
+        });
+    }
+
+    function closeModal() {
+        const modal = document.getElementById('summaryModal');
+        const card = modal.querySelector('.modal-card');
+        
+        // Animación de salida fluida
+        card.style.animation = 'slideDownSheet 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+        modal.style.animation = 'fadeOut 0.3s ease forwards';
+        
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            card.style.animation = '';
+            modal.style.animation = '';
+        }, 300);
+    }
+
+    function formatMoney(amount) {
+        return amount.toLocaleString('es-PE', { style: 'currency', currency: 'PEN' });
+    }
+
+    function downloadCSV() {
+        let csv = "Fecha,Nombre_Conductor,Tipo_Registro,Codigo_Guia,Estado,Monto_Pagado,Notas\n";
+        filteredData.forEach(row => {
+            if (row.price > 0) {
+                csv += `${row.dateStr},"${row.name}","GUIA","${row.simpleGuide}","PAGADO",${row.price.toFixed(2)},"Pago Regular"\n`;
+            }
+            if (row.bonus > 0) {
+                csv += `${row.dateStr},"${row.name}","BONO","MANUAL","BONO_EXTRA",${row.bonus.toFixed(2)},"Incentivo Adicional"\n`;
+            }
+        });
+        
+        const link = document.createElement("a");
+        link.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv);
+        link.download = "Revision_Pagos_v2.5.csv";
+        link.click();
+    }
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === "Escape") closeModal();
+    });
+
+    // --- REGISTRO DE SERVICE WORKER PARA PWA ---
+    window.addEventListener('load', () => {
+        const swCode = `
+            self.addEventListener('install', (e) => e.waitUntil(self.skipWaiting()));
+            self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+            self.addEventListener('fetch', (e) => {
+                e.respondWith(fetch(e.request).catch(() => new Response('Offline')));
+            });
+        `;
+        const blob = new Blob([swCode], { type: 'application/javascript' });
+        const swUrl = URL.createObjectURL(blob);
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register(swUrl).catch(err => console.log('SW Error:', err));
+        }
+    });
+</script>
+
+</body>
+</html>
